@@ -1,64 +1,65 @@
 public class Main {
-	
-	private static volatile int maiorNumero;
-
+	public volatile static int produtos = 0;
+	private static volatile Object lock = new Object();
 	public static void main(String[] args) {
-		MinhaThread mT1 = new MinhaThread(1, new Main());
-		MinhaThread mT2 = new MinhaThread(2, new Main());
-		MinhaThread mT3 = new MinhaThread(3, new Main());
-
-		mT1.setPriority(Thread.MIN_PRIORITY);
-		mT2.setPriority(Thread.MAX_PRIORITY);
-		mT1.start();
-		mT2.start();
-
-		for (int i = 0; i < 99999; i++) {
-
-		}
-		System.err.println("Terminou thread principal. P:" + Thread.currentThread().getPriority() + ". Maior: " + maiorNumero);
+		Produtor p1 = new Produtor(1, lock);
+		Consumidor c1 = new Consumidor(2, lock);
+		p1.start();
+		c1.start();
 	}
-
-	public void setMaiorNumero(int maiorNumero) {
-		this.maiorNumero = maiorNumero;
-	}
-
-	public int getMaiorNumero() {
-		return maiorNumero;
-	}
-
 }
 
-class MinhaThread extends Thread {
-	int numThread = 0;
-	private Main main;
-
-	MinhaThread(int num, Main main) {
-		this.numThread = num;
-		this.main = main;
+class Produtor extends Thread {
+	int nProdutor = 0;
+	private static volatile Object lock = new Object();
+	Produtor(int num, Object lock){
+		this.nProdutor = num;
 	}
-
 	public void run() {
-		for (int i = 0; i < 99999; i++) {
-			main.setMaiorNumero(largestPrimeFactor(99999));
-		}
-		System.err.println("Terminou thread " + numThread + ". P:" + Thread.currentThread().getPriority()
-				+ ". maior: " + main.getMaiorNumero());
-	}
-
-	int largestPrimeFactor(int n) {
-		if (n <= 1) {
-			return 0;
-		} else {
-			int div = 2;
-			while (div < n) {
-				if (n % div != 0) {
-					div++;
-				} else {
-					n = n / div;
-					div = 2;
+		for(int i = 0; i <= 10; i++) {
+		try {
+			synchronized( lock ) {
+				while (Main.produtos >= 10) {
+					System.out.println("Capacidade máxima!");
+					lock.wait();
 				}
-			}
-			return n;
+				Thread.sleep(500);
+				Main.produtos = Main.produtos +1;
+				/*if (Main.produtos < 100)
+					Main.produtos = Main.produtos + 1;
+					lock.wait();
+					lock.notify();*/
+				lock.notifyAll();
+				System.out.println("Produtor " + nProdutor + "\tProduziu\t" + Main.produtos);
+				}
+			} catch (Exception e) {}
+		}
+	}
+}
+
+class Consumidor extends Thread {
+	int nConsumidor = 0;
+	private static volatile Object lock = new Object();
+	Consumidor(int num, Object lock){
+		this.nConsumidor = num;
+	}
+	public void run() {
+		for(int i = 0; i <= 5; i++) {
+			try {
+				synchronized( lock ) {
+					/*if ( Main.produtos > 0)
+					Main.produtos = Main.produtos - 1;
+					}*/
+					while(Main.produtos <= 0) {
+						System.out.println("Não há o que ser consumido!");
+						lock.wait();
+					}
+					Main.produtos = Main.produtos -1;
+					System.out.println("Consumidor " + nConsumidor + "\tConsumiu\t" + Main.produtos);
+					Thread.sleep(2000);
+					lock.notifyAll();
+				}
+			}catch (Exception e) {}
 		}
 	}
 }
